@@ -1,33 +1,45 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import {
-  collection, getDocs, query, orderBy, where
+  collection, getDocs, query, orderBy, where, doc, getDoc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Student, Session } from "@/lib/types";
+import { PricingConfig, DEFAULT_PRICING, DEFAULT_SUBJECTS } from "@/lib/pricing";
 import SessionTable from "@/components/SessionTable";
 import AddSessionModal from "@/components/AddSessionModal";
-import AddStudentModal from "@/components/AddStudentModal";
 import PaymentModal from "@/components/PaymentModal";
+import SettingsTab from "@/components/SettingsTab";
+
+type View = "sesi" | "pengaturan";
 
 export default function Home() {
+  const [view, setView] = useState<View>("sesi");
   const [students, setStudents] = useState<Student[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeStudentId, setActiveStudentId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showAddSession, setShowAddSession] = useState(false);
-  const [showAddStudent, setShowAddStudent] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [subjects, setSubjects] = useState<string[]>(DEFAULT_SUBJECTS);
+  const [pricing, setPricing] = useState<PricingConfig>(DEFAULT_PRICING);
 
   const fetchStudents = useCallback(async () => {
     const snap = await getDocs(collection(db, "students"));
     const list = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Student));
     setStudents(list);
-    if (list.length > 0 && !activeStudentId) {
-      setActiveStudentId(list[0].id);
-    }
-  }, [activeStudentId]);
+    setActiveStudentId((prev) => prev ?? (list[0]?.id ?? null));
+  }, []);
+
+  const fetchConfig = useCallback(async () => {
+    const [pricingSnap, subjectsSnap] = await Promise.all([
+      getDoc(doc(db, "config", "pricing")),
+      getDoc(doc(db, "config", "subjects")),
+    ]);
+    if (pricingSnap.exists()) setPricing(pricingSnap.data() as PricingConfig);
+    if (subjectsSnap.exists()) setSubjects(subjectsSnap.data().list as string[]);
+  }, []);
 
   const fetchSessions = useCallback(async (studentId: string) => {
     setLoading(true);
@@ -43,7 +55,11 @@ export default function Home() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchStudents(); }, []);
+  useEffect(() => {
+    fetchStudents();
+    fetchConfig();
+  }, []);
+
   useEffect(() => {
     if (activeStudentId) fetchSessions(activeStudentId);
   }, [activeStudentId]);
@@ -56,10 +72,6 @@ export default function Home() {
     });
   }
 
-  function handleToggleAll(ids: string[]) {
-    setSelected(new Set(ids));
-  }
-
   const selectedSessions = sessions.filter((s) => selected.has(s.id));
   const activeStudent = students.find((s) => s.id === activeStudentId);
   const unpaidTotal = sessions.filter((s) => !s.isPaid).reduce((sum, s) => sum + s.total, 0);
@@ -68,20 +80,32 @@ export default function Home() {
     <div className="app">
       <header className="topbar">
         <div className="brand">Les Tracker</div>
-        <div className="actions">
-          <button className="btn-ghost" onClick={() => setShowAddStudent(true)}>+ Murid</button>
+        <nav className="nav">
+          <button className={`nav-btn ${view === "sesi" ? "active" : ""}`} onClick={() => setView("sesi")}>Sesi</button>
+          <button className={`nav-btn ${view === "pengaturan" ? "active" : ""}`} onClick={() => setView("pengaturan")}>Pengaturan</button>
+        </nav>
+        {view === "sesi" && (
           <button className="btn-primary" onClick={() => setShowAddSession(true)} disabled={students.length === 0}>
             + Tambah Sesi
           </button>
-        </div>
+        )}
       </header>
 
       <main className="main">
-        {students.length === 0 ? (
+        {view === "pengaturan" ? (
+          <SettingsTab
+            students={students}
+            subjects={subjects}
+            pricing={pricing}
+            onStudentsChange={fetchStudents}
+            onSubjectsChange={setSubjects}
+            onPricingChange={setPricing}
+          />
+        ) : students.length === 0 ? (
           <div className="empty-state">
             <h2>Belum ada murid</h2>
-            <p>Tambahkan murid terlebih dahulu untuk mulai mencatat sesi.</p>
-            <button className="btn-primary" onClick={() => setShowAddStudent(true)}>+ Tambah Murid</button>
+            <p>Tambahkan murid di tab Pengaturan untuk mulai mencatat sesi.</p>
+            <button className="btn-primary" onClick={() => setView("pengaturan")}>Buka Pengaturan</button>
           </div>
         ) : (
           <>
@@ -139,7 +163,7 @@ export default function Home() {
                   sessions={sessions}
                   selected={selected}
                   onToggle={handleToggle}
-                  onToggleAll={handleToggleAll}
+                  onToggleAll={(ids) => setSelected(new Set(ids))}
                 />
               )}
             </div>
@@ -150,14 +174,10 @@ export default function Home() {
       {showAddSession && (
         <AddSessionModal
           students={students}
+          subjects={subjects}
+          pricing={pricing}
           onClose={() => setShowAddSession(false)}
           onAdded={() => activeStudentId && fetchSessions(activeStudentId)}
-        />
-      )}
-      {showAddStudent && (
-        <AddStudentModal
-          onClose={() => setShowAddStudent(false)}
-          onAdded={fetchStudents}
         />
       )}
       {showPayment && (
@@ -173,26 +193,24 @@ export default function Home() {
         .topbar {
           background: white; border-bottom: 1px solid #e5e7eb;
           padding: 0 24px; height: 56px;
-          display: flex; align-items: center; justify-content: space-between;
+          display: flex; align-items: center; gap: 16px;
           position: sticky; top: 0; z-index: 10;
         }
-        .brand { font-weight: 700; font-size: 18px; color: #6366f1; letter-spacing: -0.3px; }
-        .actions { display: flex; gap: 8px; }
+        .brand { font-weight: 700; font-size: 18px; color: #6366f1; letter-spacing: -0.3px; margin-right: auto; }
+        .nav { display: flex; gap: 2px; background: #f3f4f6; border-radius: 8px; padding: 3px; }
+        .nav-btn {
+          background: none; border: none; padding: 5px 14px; border-radius: 6px;
+          font-size: 14px; cursor: pointer; color: #6b7280; font-weight: 500;
+        }
+        .nav-btn.active { background: white; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .btn-primary {
           background: #6366f1; color: white; border: none; padding: 8px 16px;
-          border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;
+          border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap;
         }
         .btn-primary:hover:not(:disabled) { background: #4f46e5; }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-ghost {
-          background: white; color: #374151; border: 1px solid #d1d5db;
-          padding: 7px 14px; border-radius: 8px; font-size: 14px; cursor: pointer;
-        }
-        .btn-ghost:hover { background: #f3f4f6; }
-        .main { max-width: 1100px; margin: 0 auto; padding: 24px 24px; }
-        .empty-state {
-          text-align: center; padding: 80px 0;
-        }
+        .main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+        .empty-state { text-align: center; padding: 80px 0; }
         .empty-state h2 { margin: 0 0 8px; font-size: 22px; color: #374151; }
         .empty-state p { color: #9ca3af; margin-bottom: 24px; }
         .student-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
@@ -214,9 +232,7 @@ export default function Home() {
         .info-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; }
         .info-val { font-size: 15px; font-weight: 500; }
         .info-val.unpaid { color: #dc2626; }
-        .table-card {
-          background: white; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;
-        }
+        .table-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
         .table-toolbar {
           display: flex; align-items: center; justify-content: space-between;
           padding: 16px 20px; border-bottom: 1px solid #f3f4f6;

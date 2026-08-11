@@ -3,25 +3,25 @@ import { useState } from "react";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Student } from "@/lib/types";
-import { calcSession, getDayName, formatRupiah } from "@/lib/pricing";
+import { calcSession, getDayName, formatRupiah, PricingConfig, DEFAULT_PRICING, DEFAULT_SUBJECTS } from "@/lib/pricing";
 
 interface Props {
   students: Student[];
+  subjects: string[];
+  pricing: PricingConfig;
   onClose: () => void;
   onAdded: () => void;
 }
 
-const SUBJECTS = ["MTK", "Bindo", "IPA", "IPS", "Inggris", "Fisika", "Kimia", "Biologi", "Lainnya"];
-
-export default function AddSessionModal({ students, onClose, onAdded }: Props) {
+export default function AddSessionModal({ students, subjects, pricing, onClose, onAdded }: Props) {
   const today = new Date().toISOString().split("T")[0];
   const [studentId, setStudentId] = useState(students[0]?.id ?? "");
   const [date, setDate] = useState(today);
-  const [subject, setSubject] = useState(SUBJECTS[0]);
+  const [subject, setSubject] = useState(subjects[0] ?? DEFAULT_SUBJECTS[0]);
   const [extraBlocks, setExtraBlocks] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  const preview = date ? calcSession(date, extraBlocks) : null;
+  const preview = date ? calcSession(date, extraBlocks, pricing) : null;
   const dayName = date ? getDayName(date) : "";
 
   async function handleSubmit(e: React.FormEvent) {
@@ -30,7 +30,7 @@ export default function AddSessionModal({ students, onClose, onAdded }: Props) {
     setLoading(true);
 
     const student = students.find((s) => s.id === studentId)!;
-    const calc = calcSession(date, extraBlocks);
+    const calc = calcSession(date, extraBlocks, pricing);
 
     await addDoc(collection(db, "sessions"), {
       studentId,
@@ -59,7 +59,7 @@ export default function AddSessionModal({ students, onClose, onAdded }: Props) {
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Tambah Sesi</h2>
-          <button className="close-btn" onClick={onClose}>x</button>
+          <button className="close-btn" onClick={onClose}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} className="form">
@@ -88,7 +88,7 @@ export default function AddSessionModal({ students, onClose, onAdded }: Props) {
           <div className="field">
             <label>Mapel</label>
             <select value={subject} onChange={(e) => setSubject(e.target.value)}>
-              {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
+              {subjects.map((s) => <option key={s}>{s}</option>)}
             </select>
           </div>
 
@@ -141,7 +141,7 @@ export default function AddSessionModal({ students, onClose, onAdded }: Props) {
         }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .modal-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
-        .close-btn { background: none; border: none; font-size: 18px; cursor: pointer; color: #6b7280; padding: 4px 8px; }
+        .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #6b7280; padding: 2px 8px; }
         .form { display: flex; flex-direction: column; gap: 14px; }
         .field { display: flex; flex-direction: column; gap: 4px; }
         .field label { font-size: 13px; font-weight: 500; color: #374151; }

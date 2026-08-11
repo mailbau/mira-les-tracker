@@ -1,6 +1,16 @@
-const WEEKDAY_RATE = 77500;
-const WEEKEND_RATE = 83500;
-const EXTRA_BLOCK_RATE = 25000;
+export interface PricingConfig {
+  weekdayRate: number;
+  weekendRate: number;
+  extraBlockRate: number;
+}
+
+export const DEFAULT_PRICING: PricingConfig = {
+  weekdayRate: 77500,
+  weekendRate: 83500,
+  extraBlockRate: 25000,
+};
+
+export const DEFAULT_SUBJECTS = ["MTK", "Bindo", "IPA", "IPS", "Inggris", "Fisika", "Kimia", "Biologi", "Lainnya"];
 
 const DAYS_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
@@ -11,16 +21,14 @@ export function getDayName(dateStr: string): string {
 
 export function isWeekend(dateStr: string): boolean {
   const day = new Date(dateStr + "T00:00:00").getDay();
-  return day === 0 || day === 6; // Sunday or Saturday
+  return day === 0 || day === 6;
 }
 
-export function calcSession(dateStr: string, extraBlocks: number) {
+export function calcSession(dateStr: string, extraBlocks: number, pricing: PricingConfig = DEFAULT_PRICING) {
   const weekend = isWeekend(dateStr);
-  const baseRate = weekend ? WEEKEND_RATE : WEEKDAY_RATE;
-  const weekendBonus = 0; // already baked into baseRate
-  const extraCharge = extraBlocks * EXTRA_BLOCK_RATE;
-  const total = baseRate + extraCharge;
-  return { isWeekend: weekend, baseRate, weekendBonus, extraCharge, total };
+  const baseRate = weekend ? pricing.weekendRate : pricing.weekdayRate;
+  const extraCharge = extraBlocks * pricing.extraBlockRate;
+  return { isWeekend: weekend, baseRate, weekendBonus: 0, extraCharge, total: baseRate + extraCharge };
 }
 
 export function formatRupiah(amount: number): string {
