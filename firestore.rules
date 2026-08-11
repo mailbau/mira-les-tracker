@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Lock down to your IP or use Firebase Auth — for now allow all reads/writes
+    // CHANGE THIS before sharing the URL publicly
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
