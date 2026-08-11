@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import {
-  collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc
+  collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc, deleteDoc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Student, Session } from "@/lib/types";
@@ -89,6 +89,19 @@ export default function Home() {
     if (activeStudentId) fetchSessions(activeStudentId);
   }
 
+  async function handleDeleteSelected() {
+    if (!confirm(`Hapus ${selected.size} sesi? Tindakan ini tidak bisa dibatalkan.`)) return;
+    await Promise.all(selectedSessions.map((s) => deleteDoc(doc(db, "sessions", s.id))));
+    if (activeStudentId) fetchSessions(activeStudentId);
+  }
+
+  async function handleClearAll() {
+    const name = activeStudent?.name ?? "murid ini";
+    if (!confirm(`Hapus SEMUA sesi untuk ${name}?\n\nTindakan ini tidak bisa dibatalkan.`)) return;
+    await Promise.all(sessions.map((s) => deleteDoc(doc(db, "sessions", s.id))));
+    if (activeStudentId) fetchSessions(activeStudentId);
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -162,20 +175,34 @@ export default function Home() {
 
             <div className="table-card">
               <div className="table-toolbar">
-                <h3>Riwayat Sesi</h3>
-                {selectionType === "mixed" && (
-                  <span className="selection-warning">Pilih hanya sesi lunas atau belum lunas</span>
-                )}
-                {selectionType === "unpaid" && (
-                  <button className="btn-pay" onClick={() => setShowPayment(true)}>
-                    Tandai Lunas ({selected.size} sesi)
-                  </button>
-                )}
-                {selectionType === "paid" && (
-                  <button className="btn-unpay" onClick={handleMarkUnpaid}>
-                    Batalkan Pembayaran ({selected.size} sesi)
-                  </button>
-                )}
+                <div className="toolbar-left">
+                  <h3>Riwayat Sesi</h3>
+                  {sessions.length > 0 && (
+                    <button className="btn-clear-all" onClick={handleClearAll}>
+                      Hapus Semua
+                    </button>
+                  )}
+                </div>
+                <div className="toolbar-right">
+                  {selectionType === "mixed" && (
+                    <span className="selection-warning">Pilih hanya sesi lunas atau belum lunas</span>
+                  )}
+                  {selectionType === "unpaid" && (
+                    <button className="btn-pay" onClick={() => setShowPayment(true)}>
+                      Tandai Lunas ({selected.size})
+                    </button>
+                  )}
+                  {selectionType === "paid" && (
+                    <button className="btn-unpay" onClick={handleMarkUnpaid}>
+                      Batalkan Pembayaran ({selected.size})
+                    </button>
+                  )}
+                  {selectionType !== "none" && (
+                    <button className="btn-delete" onClick={handleDeleteSelected}>
+                      Hapus ({selected.size})
+                    </button>
+                  )}
+                </div>
               </div>
               {loading ? (
                 <div className="loading">Memuat...</div>
@@ -255,10 +282,22 @@ export default function Home() {
         .info-val.unpaid { color: #dc2626; }
         .table-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; }
         .table-toolbar {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 16px 20px; border-bottom: 1px solid #f3f4f6;
+          display: flex; align-items: center; justify-content: space-between; gap: 8px;
+          padding: 16px 20px; border-bottom: 1px solid #f3f4f6; flex-wrap: wrap;
         }
+        .toolbar-left { display: flex; align-items: center; gap: 12px; }
+        .toolbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .table-toolbar h3 { margin: 0; font-size: 15px; font-weight: 600; }
+        .btn-clear-all {
+          background: none; border: none; color: #9ca3af; font-size: 12px;
+          cursor: pointer; padding: 3px 0; text-decoration: underline;
+        }
+        .btn-clear-all:hover { color: #dc2626; }
+        .btn-delete {
+          background: #fef2f2; color: #dc2626; border: 1px solid #fecaca;
+          padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
+        }
+        .btn-delete:hover { background: #fee2e2; }
         .btn-pay {
           background: #22c55e; color: white; border: none;
           padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
