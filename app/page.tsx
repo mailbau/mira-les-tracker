@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import {
-  collection, getDocs, query, orderBy, where, doc, getDoc
+  collection, getDocs, query, orderBy, where, doc, getDoc, updateDoc
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Student, Session } from "@/lib/types";
@@ -75,6 +75,19 @@ export default function Home() {
   const selectedSessions = sessions.filter((s) => selected.has(s.id));
   const activeStudent = students.find((s) => s.id === activeStudentId);
   const unpaidTotal = sessions.filter((s) => !s.isPaid).reduce((sum, s) => sum + s.total, 0);
+
+  const selectionType: "none" | "unpaid" | "paid" | "mixed" =
+    selectedSessions.length === 0 ? "none"
+    : selectedSessions.every((s) => !s.isPaid) ? "unpaid"
+    : selectedSessions.every((s) => s.isPaid) ? "paid"
+    : "mixed";
+
+  async function handleMarkUnpaid() {
+    await Promise.all(
+      selectedSessions.map((s) => updateDoc(doc(db, "sessions", s.id), { isPaid: false, paidAt: null }))
+    );
+    if (activeStudentId) fetchSessions(activeStudentId);
+  }
 
   return (
     <div className="app">
@@ -150,9 +163,17 @@ export default function Home() {
             <div className="table-card">
               <div className="table-toolbar">
                 <h3>Riwayat Sesi</h3>
-                {selected.size > 0 && (
+                {selectionType === "mixed" && (
+                  <span className="selection-warning">Pilih hanya sesi lunas atau belum lunas</span>
+                )}
+                {selectionType === "unpaid" && (
                   <button className="btn-pay" onClick={() => setShowPayment(true)}>
                     Tandai Lunas ({selected.size} sesi)
+                  </button>
+                )}
+                {selectionType === "paid" && (
+                  <button className="btn-unpay" onClick={handleMarkUnpaid}>
+                    Batalkan Pembayaran ({selected.size} sesi)
                   </button>
                 )}
               </div>
@@ -243,6 +264,16 @@ export default function Home() {
           padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
         }
         .btn-pay:hover { background: #16a34a; }
+        .btn-unpay {
+          background: #f97316; color: white; border: none;
+          padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer;
+        }
+        .btn-unpay:hover { background: #ea580c; }
+        .selection-warning {
+          font-size: 13px; color: #dc2626; font-weight: 500;
+          background: #fef2f2; border: 1px solid #fecaca;
+          padding: 5px 12px; border-radius: 8px;
+        }
         .loading { text-align: center; padding: 32px; color: #9ca3af; font-size: 14px; }
       `}</style>
     </div>

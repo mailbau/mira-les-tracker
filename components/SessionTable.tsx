@@ -42,8 +42,8 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
             <th className="col-check">
               <input
                 type="checkbox"
-                onChange={(e) => onToggleAll(e.target.checked ? sessions.filter(s => !s.isPaid).map(s => s.id) : [])}
-                checked={sessions.filter(s => !s.isPaid).every(s => selected.has(s.id)) && sessions.some(s => !s.isPaid)}
+                onChange={(e) => onToggleAll(e.target.checked ? sessions.map(s => s.id) : [])}
+                checked={sessions.length > 0 && sessions.every(s => selected.has(s.id))}
               />
             </th>
             <th>No</th>
@@ -73,16 +73,14 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
                 <tr
                   key={s.id}
                   className={`session-row ${s.isPaid ? "paid" : ""} ${s.isWeekend ? "weekend" : ""} ${selected.has(s.id) ? "selected" : ""}`}
-                  onClick={() => !s.isPaid && onToggle(s.id)}
+                  onClick={() => onToggle(s.id)}
                 >
                   <td className="col-check" onClick={(e) => e.stopPropagation()}>
-                    {!s.isPaid && (
-                      <input
-                        type="checkbox"
-                        checked={selected.has(s.id)}
-                        onChange={() => onToggle(s.id)}
-                      />
-                    )}
+                    <input
+                      type="checkbox"
+                      checked={selected.has(s.id)}
+                      onChange={() => onToggle(s.id)}
+                    />
                   </td>
                   <td>{i + 1}</td>
                   <td>{new Date(s.date + "T00:00:00").toLocaleDateString("id-ID", { day: "numeric", month: "numeric", year: "numeric" })}</td>
@@ -129,7 +127,7 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
           padding: 8px 12px;
         }
         .total-cell { font-weight: 500; }
-        .session-row:hover:not(.paid) { background: #f5f3ff; cursor: pointer; }
+        .session-row:hover { background: #f5f3ff; cursor: pointer; }
         .session-row.selected { background: #ede9fe !important; }
         .session-row.paid { color: #9ca3af; }
         .session-row.weekend td:nth-child(7) { color: #b45309; font-weight: 500; }
