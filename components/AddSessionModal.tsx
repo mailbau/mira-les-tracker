@@ -94,12 +94,22 @@ export default function AddSessionModal({ students, subjects, pricing, onClose, 
 
           <div className="field">
             <label>Waktu Tambahan</label>
-            <select value={extraBlocks} onChange={(e) => setExtraBlocks(Number(e.target.value))}>
-              <option value={0}>Tidak ada</option>
-              <option value={1}>+30 menit</option>
-              <option value={2}>+60 menit</option>
-              <option value={3}>+90 menit</option>
-            </select>
+            <div className="stepper">
+              <button
+                type="button"
+                className="step-btn"
+                onClick={() => setExtraBlocks((b) => Math.max(0, b - 1))}
+                disabled={extraBlocks === 0}
+              >−</button>
+              <span className="step-val">
+                {extraBlocks === 0 ? "0 menit" : `+${extraBlocks * 15} menit`}
+              </span>
+              <button
+                type="button"
+                className="step-btn"
+                onClick={() => setExtraBlocks((b) => b + 1)}
+              >+</button>
+            </div>
           </div>
 
           {preview && (
@@ -110,7 +120,7 @@ export default function AddSessionModal({ students, subjects, pricing, onClose, 
               </div>
               {preview.extraCharge > 0 && (
                 <div className="preview-row">
-                  <span>Extra {extraBlocks * 30} menit</span>
+                  <span>Extra {extraBlocks * 15} menit</span>
                   <span>{formatRupiah(preview.extraCharge)}</span>
                 </div>
               )}
@@ -151,6 +161,18 @@ export default function AddSessionModal({ students, subjects, pricing, onClose, 
         }
         .field input:focus, .field select:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
         .hint { font-size: 12px; color: #6b7280; }
+        .stepper { display: flex; align-items: center; gap: 0; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; width: fit-content; }
+        .step-btn {
+          background: #f9fafb; border: none; width: 36px; height: 36px;
+          font-size: 18px; cursor: pointer; color: #374151; line-height: 1;
+        }
+        .step-btn:hover:not(:disabled) { background: #e5e7eb; }
+        .step-btn:disabled { color: #d1d5db; cursor: not-allowed; }
+        .step-val {
+          min-width: 90px; text-align: center; font-size: 14px;
+          color: #111827; border-left: 1px solid #d1d5db; border-right: 1px solid #d1d5db;
+          padding: 0 8px; line-height: 36px;
+        }
         .preview-box {
           background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
           padding: 12px; display: flex; flex-direction: column; gap: 6px;

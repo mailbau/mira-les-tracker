@@ -302,7 +302,7 @@ function PricingSection({ pricing, onChange }: { pricing: PricingConfig; onChang
             onChange={(v) => setDraft({ ...draft, weekendRate: v })}
           />
           <PriceField
-            label="Extra time (per 30 menit)"
+            label="Extra time (per 15 menit)"
             value={draft.extraBlockRate}
             onChange={(v) => setDraft({ ...draft, extraBlockRate: v })}
           />
