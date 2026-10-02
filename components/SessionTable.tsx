@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { Session } from "@/lib/types";
 import { formatRupiah } from "@/lib/pricing";
 
@@ -20,7 +21,7 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
   }
 
   // Group by month
-  const groups: { label: string; sessions: Session[] }[] = [];
+  const groups: { label: string; key: string; sessions: Session[] }[] = [];
   const monthMap = new Map<string, Session[]>();
   for (const s of sessions) {
     const key = s.date.slice(0, 7); // YYYY-MM
@@ -31,8 +32,20 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
     const [year, month] = key.split("-");
     const label = new Date(Number(year), Number(month) - 1, 1)
       .toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-    groups.push({ label, sessions: list });
+    groups.push({ label, key, sessions: list });
   }
+
+  const latestKey = groups[groups.length - 1]?.key ?? "";
+  const [collapsed, setCollapsed] = useState<Set<string>>(() =>
+    new Set(groups.slice(0, -1).map((g) => g.key))
+  );
+
+  const toggle = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
 
   return (
     <div className="table-wrap">
@@ -64,12 +77,17 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
             const allIds = g.sessions.map((s) => s.id);
             const unpaidIds = g.sessions.filter((s) => !s.isPaid).map((s) => s.id);
             const allUnpaidSelected = unpaidIds.length > 0 && unpaidIds.every((id) => selected.has(id));
+            const isCollapsed = collapsed.has(g.key);
 
             return [
-              <tr key={`header-${g.label}`} className="month-header">
-                <td colSpan={11}>{g.label}</td>
+              <tr key={`header-${g.label}`} className="month-header" onClick={() => toggle(g.key)} style={{ cursor: "pointer" }}>
+                <td colSpan={11}>
+                  <span className="chevron">{isCollapsed ? "▶" : "▼"}</span>
+                  {g.label}
+                  {isCollapsed && <span className="collapsed-hint"> — {g.sessions.length} sesi, {formatRupiah(monthTotal)}</span>}
+                </td>
               </tr>,
-              ...g.sessions.map((s, i) => (
+              ...(isCollapsed ? [] : g.sessions.map((s, i) => (
                 <tr
                   key={s.id}
                   className={`session-row ${s.isPaid ? "paid" : ""} ${s.isWeekend ? "weekend" : ""} ${selected.has(s.id) ? "selected" : ""}`}
@@ -97,12 +115,12 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
                     </span>
                   </td>
                 </tr>
-              )),
-              <tr key={`total-${g.label}`} className="month-total">
+              ))),
+              ...(!isCollapsed ? [<tr key={`total-${g.label}`} className="month-total">
                 <td colSpan={9} style={{ textAlign: "right" }}>Total {g.label}</td>
                 <td className="total-cell">{formatRupiah(monthTotal)}</td>
                 <td></td>
-              </tr>,
+              </tr>] : []),
             ];
           })}
         </tbody>
@@ -121,7 +139,11 @@ export default function SessionTable({ sessions, selected, onToggle, onToggleAll
         .month-header td {
           background: #ede9fe; color: #5b21b6; font-weight: 600;
           padding: 8px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+          user-select: none;
         }
+        .month-header:hover td { background: #ddd6fe; }
+        .chevron { margin-right: 6px; font-size: 10px; display: inline-block; width: 10px; }
+        .collapsed-hint { font-weight: 400; opacity: 0.75; text-transform: none; letter-spacing: 0; font-size: 11px; margin-left: 4px; }
         .month-total td {
           background: #f5f3ff; font-weight: 600; border-top: 1px solid #ddd6fe;
           padding: 8px 12px;
